@@ -20,7 +20,7 @@ def start_the_game():
     elif difficulty_level == 2:     
         const.set_initial_val(700, 500, 600)
     elif difficulty_level == 3:     
-        const.set_initial_val(1100, 600, 1100, cell_size=25)
+        const.set_initial_val(1400, 600, 1100, cell_size=25)
 
     import maze
     maze.main()
