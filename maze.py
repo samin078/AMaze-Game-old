@@ -5,6 +5,7 @@ from random import randint
 from ga import *
 import const
 from const import WHITE,BLACK,PURPLE,BLUE,OLIVE,FPS
+from minimax import minimax
 
 
 # pygame.init()
@@ -30,13 +31,13 @@ nempty = nrows//2
 
 # Setup the display
 win = pygame.display.set_mode((WIDTH+200, HEIGHT))
-pygame.display.set_caption("AMaze Game")
+pygame.display.set_caption("Maze Solver")
 
 # Load images
 cat_img = pygame.image.load("G:/AMaze-Game/cat.png")
-burger_img = pygame.image.load("G:/AMaze-Game/fish.png")
+fish_img = pygame.image.load("G:/AMaze-Game/fish.png")
 cat_img = pygame.transform.scale(cat_img, (CELL_SIZE - PADDING, CELL_SIZE - PADDING))
-burger_img = pygame.transform.scale(burger_img, (CELL_SIZE - PADDING, CELL_SIZE - PADDING))
+fish_img = pygame.transform.scale(fish_img, (CELL_SIZE - PADDING, CELL_SIZE - PADDING))
 
 # Button rectangles
 regen_button_rect = pygame.Rect(WIDTH + 200 - 180, 50, 160, 40)
@@ -44,6 +45,7 @@ show_button_rect = pygame.Rect(WIDTH + 200 - 180, 100, 160, 40)
 result_button_rect = pygame.Rect(WIDTH + 200 - 180, 150, 160, 40)
 toggle_footprints_button_rect = pygame.Rect(WIDTH + 200 - 180, 200, 160, 40)
 ga_button_rect = pygame.Rect(WIDTH + 200 - 180, 250, 160, 40)
+minimax_button_rect = pygame.Rect(WIDTH + 200 - 180, 300, 160, 40)
 
 class Cell:
     def __init__(self, r, c):
@@ -181,17 +183,20 @@ def draw_buttons(win):
     pygame.draw.rect(win, OLIVE, result_button_rect)
     pygame.draw.rect(win, OLIVE, toggle_footprints_button_rect)
     pygame.draw.rect(win, OLIVE, ga_button_rect)
+    pygame.draw.rect(win, OLIVE, minimax_button_rect)
     font = pygame.font.Font(None, 36)
     regen_text = font.render('Regenerate', True, WHITE)
     show_text = font.render('Show Gen', True, WHITE)
     result_text = font.render('Result', True, WHITE)
     toggle_footprints_text = font.render('Footprints', True, WHITE)
     ga_text = font.render('Run GA', True, WHITE)
+    minimax_text = font.render('Run MinMax', True, WHITE)
     win.blit(regen_text, (regen_button_rect.x + 10, regen_button_rect.y + 5))
     win.blit(show_text, (show_button_rect.x + 10, show_button_rect.y + 5))
     win.blit(result_text, (result_button_rect.x + 10, result_button_rect.y + 5))
     win.blit(toggle_footprints_text, (toggle_footprints_button_rect.x + 10, toggle_footprints_button_rect.y + 5))
     win.blit(ga_text, (ga_button_rect.x + 10, ga_button_rect.y + 5))
+    win.blit(minimax_text, (minimax_button_rect.x + 10, minimax_button_rect.y + 5))
 
 def bfs(grid, start, goal):
     queue = deque([(start, [])])
@@ -275,6 +280,14 @@ def main():
                     ga_best_fitness = 0
                     ga_generations = 0
                     ga_best_path = []
+                elif minimax_button_rect.collidepoint(event.pos):
+                    ga_running = False
+                    _, path = minimax(current, goal, grid, 500, True, set())
+                    if path:
+                        for cell in path:
+                            cell.part_of_result_path = True
+                        draw_grid(win, grid, show_footprints)
+                        pygame.display.flip()
 
             elif event.type == pygame.KEYDOWN:
                 if not generating:
@@ -324,7 +337,7 @@ def main():
         draw_grid(win, grid, show_footprints)
         draw_buttons(win)
         win.blit(cat_img, (current.c * CELL_SIZE + PADDING, current.r * CELL_SIZE + PADDING))
-        win.blit(burger_img, (goal.c * CELL_SIZE + PADDING, goal.r * CELL_SIZE + PADDING))
+        win.blit(fish_img, (goal.c * CELL_SIZE + PADDING, goal.r * CELL_SIZE + PADDING))
 
         pygame.display.flip()
 
