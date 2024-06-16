@@ -34,7 +34,7 @@ pygame.display.set_caption("AMaze Game")
 
 # Load images
 cat_img = pygame.image.load("G:/AMaze-Game/cat.png")
-burger_img = pygame.image.load("G:/AMaze-Game/burger.png")
+burger_img = pygame.image.load("G:/AMaze-Game/fish.png")
 cat_img = pygame.transform.scale(cat_img, (CELL_SIZE - PADDING, CELL_SIZE - PADDING))
 burger_img = pygame.transform.scale(burger_img, (CELL_SIZE - PADDING, CELL_SIZE - PADDING))
 
@@ -330,10 +330,11 @@ def main():
 
         if current == goal and not generating:
             print("You won!")
+            winning_message(win)
             running = False
 
     # pygame.quit()
-    winning_message(win)
+    #winning_message(win)
     # WIDTH, HEIGHT = 1000, 600
     # surface = pygame.display.set_mode((WIDTH+200, HEIGHT))
     
