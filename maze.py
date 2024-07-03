@@ -6,7 +6,8 @@ from ga import *
 import const
 from const import WHITE,BLACK,PURPLE,BLUE,OLIVE,FPS
 from minimax import minimax
-
+#import calc_score
+from fuzzy_new import get_membership_blocks_accessed,get_membership_time_elapsed,rule_evaluation,defuzzify
 
 # pygame.init()
 
@@ -219,10 +220,36 @@ def bfs(grid, start, goal):
                    (current.walls[2] == False and neighbor == grid[current.r+1][current.c]) or \
                    (current.walls[3] == False and neighbor == grid[current.r][current.c-1]):
                     queue.append((neighbor, path))
-    return None
+    return path
+
+def calculate_score_fuzzy(blocks_accessed, optimal_path_length, time_elapsed, level):
+    if level == 'easy':
+        time_elapsed_membership = get_membership_time_elapsed(time_elapsed,optimal_path_length,level)
+        blocks_accessed_membership = get_membership_blocks_accessed(blocks_accessed,optimal_path_length,level)
+        
+    elif level == 'medium':
+        time_elapsed_membership = get_membership_time_elapsed(time_elapsed,optimal_path_length,level)
+        blocks_accessed_membership = get_membership_blocks_accessed(blocks_accessed,optimal_path_length,level)
+       
+    elif level == 'hard':
+        time_elapsed_membership = get_membership_time_elapsed(time_elapsed,optimal_path_length,level)
+        blocks_accessed_membership = get_membership_blocks_accessed(blocks_accessed,optimal_path_length,level)
+    else:
+        raise ValueError("Invalid level")
+
+    low, medium, high = rule_evaluation(blocks_accessed_membership,time_elapsed_membership)
+    score = defuzzify(low, medium, high)
+    # Determine score category
+    if score < 34:
+        category = "Low"
+    elif score >35 and score < 67:
+        category = "Medium"
+    else:
+        category = "High"
+    return score,category
 
 
-def main():
+def main(difficulty_level):
     clock = pygame.time.Clock()
     grid = [[Cell(r, c) for c in range(ncols)] for r in range(nrows)]
     generate_maze(grid)
@@ -241,10 +268,32 @@ def main():
     ga_generations = 0
     ga_best_path = []
 
+    extra_blocks_accessed_count = 0
+    start_time = pygame.time.get_ticks()
+    block_count = 0
+    agent_block_count = 1
+    levels = {1: 'easy', 2: 'medium', 3: 'hard'}
+    level = levels[difficulty_level]
+    category = None
+
     running = True
     while running:
         clock.tick(FPS)
         win.fill(BLACK)
+
+        current_time = pygame.time.get_ticks()
+        elapsed_time = (current_time - start_time) / 1000  # Convert to seconds
+        if level == 'easy':
+            optimal_time = len(bfs(grid,grid[0][0],goal))*0.6
+            timeout_threshold = optimal_time*10.0
+        elif level == 'medium':
+            optimal_time = len(bfs(grid,grid[0][0],goal))*0.5
+            timeout_threshold = optimal_time*2.0
+        elif level == 'hard':
+            optimal_time = len(bfs(grid,grid[0][0],goal))*0.48
+            timeout_threshold = optimal_time*0.8 + optimal_time
+        else:
+            raise ValueError("Invalid level")
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -268,6 +317,8 @@ def main():
                     ga_running = False
                 elif result_button_rect.collidepoint(event.pos):
                     path = bfs(grid, grid[0][0], goal)
+                    block_count = len(path)
+                    print("Count: ",block_count)
                     if path:
                         for cell in path:
                             cell.part_of_result_path = True
@@ -286,23 +337,30 @@ def main():
                     if path:
                         for cell in path:
                             cell.part_of_result_path = True
-                        draw_grid(win, grid, show_footprints)
-                        pygame.display.flip()
 
             elif event.type == pygame.KEYDOWN:
+                prev_r, prev_c = current.r, current.c
                 if not generating:
                     if event.key == pygame.K_UP and not current.walls[0]:
                         current.path_visited = True
                         current = grid[current.r - 1][current.c]
+                        agent_block_count+=1
                     elif event.key == pygame.K_DOWN and not current.walls[2]:
                         current.path_visited = True
                         current = grid[current.r + 1][current.c]
+                        agent_block_count+=1
                     elif event.key == pygame.K_LEFT and not current.walls[3]:
                         current.path_visited = True
                         current = grid[current.r][current.c - 1]
+                        agent_block_count+=1
                     elif event.key == pygame.K_RIGHT and not current.walls[1]:
                         current.path_visited = True
                         current = grid[current.r][current.c + 1]
+                        agent_block_count+=1
+
+                    if (prev_r, prev_c) != (current.r, current.c):
+                        extra_blocks_accessed_count += 1
+                    
 
         if generating:
             current, stack = step_maze_generation(grid, stack, current)
@@ -339,17 +397,34 @@ def main():
         win.blit(cat_img, (current.c * CELL_SIZE + PADDING, current.r * CELL_SIZE + PADDING))
         win.blit(fish_img, (goal.c * CELL_SIZE + PADDING, goal.r * CELL_SIZE + PADDING))
 
+        # Draw remaining time
+        font = pygame.font.Font(None, 26)
+        elapsed_time_text = font.render(f"Time Count: {elapsed_time:.2f}s", True, WHITE)
+        win.blit(elapsed_time_text, (regen_button_rect.x, regen_button_rect.y - 40))
+
         pygame.display.flip()
+        
+
+        if elapsed_time > timeout_threshold:
+            print("Timeout!")
+            timeout_message(win)
+            running = False
 
         if current == goal and not generating:
             print("You won!")
             winning_message(win)
+            end_time = pygame.time.get_ticks()
+            time_elapsed = (end_time - start_time) / 1000  # Convert to seconds
+            print(f'Time Elapsed: {time_elapsed}')
+            path = bfs(grid, grid[0][0], goal)
+            block_count = len(path)  
+            score,category = calculate_score_fuzzy(extra_blocks_accessed_count, block_count, time_elapsed, level)
+            # score = calc_score.calculate_score(extra_blocks_accessed_count, len(shortest_path), time_elapsed, level)
+            #score = round(score)
+            print(f'Block_count: {block_count}')
+            print(f'Agent_block_count: {agent_block_count}')
+            print(f'Score: {score} ({category})')
             running = False
-
-    # pygame.quit()
-    #winning_message(win)
-    # WIDTH, HEIGHT = 1000, 600
-    # surface = pygame.display.set_mode((WIDTH+200, HEIGHT))
     
 def winning_message(win):
     font = pygame.font.Font(None, 72)
@@ -358,6 +433,15 @@ def winning_message(win):
     pygame.display.update()
     pygame.time.wait(3000)  # Display message for 3 seconds
 
+def timeout_message(win):
+    font = pygame.font.Font(None, 72)
+    text = font.render("Timeout!!!", True, (255, 0, 0))
+    win.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
+    pygame.display.update()
+    pygame.time.wait(3000)  # Display message for 3 seconds
+
 if __name__ == "__main__":
-    main()
+    import sys
+    difficulty_level = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    main(difficulty_level)
 
